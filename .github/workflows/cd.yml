@@ -1,0 +1,81 @@
+name: CD
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  ACR_NAME: acrlojaveloz
+  AKS_CLUSTER: aks-lojaveloz-prod
+  AKS_RESOURCE_GROUP: rg-lojaveloz-prod
+  NAMESPACE: pedidos-veloz
+
+jobs:
+  build-and-push:
+    name: Build e Push para ACR
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service:
+          [api-gateway, orders-service, payments-service, inventory-service]
+
+    steps:
+      - name: Checkout do codigo
+        uses: actions/checkout@v4
+
+      - name: Login na Azure via OIDC
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Build e Push no ACR
+        run: |
+          az acr build \
+            --registry ${{ env.ACR_NAME }} \
+            --image ${{ matrix.service }}:${{ github.sha }} \
+            --image ${{ matrix.service }}:latest \
+            --file ./services/${{ matrix.service }}/Dockerfile \
+            ./services/${{ matrix.service }}
+
+  deploy:
+    name: Deploy no AKS
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    environment: production
+
+    steps:
+      - name: Checkout do codigo
+        uses: actions/checkout@v4
+
+      - name: Login na Azure via OIDC
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Conectar ao AKS
+        uses: azure/aks-set-context@v4
+        with:
+          resource-group: ${{ env.AKS_RESOURCE_GROUP }}
+          cluster-name: ${{ env.AKS_CLUSTER }}
+
+      - name: Substituir tag das imagens nos manifests
+        run: |
+          find infra/k8s -name "*.yaml" -exec \
+            sed -i "s/IMAGE_TAG/${{ github.sha }}/g" {} \;
+
+      - name: Aplicar configuracoes
+        run: |
+          kubectl apply -f infra/k8s/00-namespace.yaml
+          kubectl apply -f infra/k8s/01-configmaps.yaml
+
+      - name: Deploy dos servicos
+        uses: azure/k8s-deploy@v5
+        with:
