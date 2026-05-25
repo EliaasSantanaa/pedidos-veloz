@@ -1,5 +1,3 @@
-version: "3.9"
-
 networks:
   pedidos-net:
     driver: bridge
@@ -25,17 +23,9 @@ services:
   orders-service:
     build:
       context: ./services/orders-service
-      target: production
     environment:
       - NODE_ENV=development
       - PORT=3001
-      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/orders_db
-      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672
-    depends_on:
-      postgres:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
     networks:
       - pedidos-net
     restart: unless-stopped
@@ -43,16 +33,9 @@ services:
   payments-service:
     build:
       context: ./services/payments-service
-      target: production
     environment:
       - NODE_ENV=development
       - PORT=3002
-      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672
-      - PAYMENT_GATEWAY_URL=${PAYMENT_GATEWAY_URL:-http://mock-payment}
-      - PAYMENT_GATEWAY_KEY=${PAYMENT_GATEWAY_KEY:-dev-key}
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
     networks:
       - pedidos-net
     restart: unless-stopped
@@ -60,17 +43,9 @@ services:
   inventory-service:
     build:
       context: ./services/inventory-service
-      target: production
     environment:
       - NODE_ENV=development
       - PORT=3003
-      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/inventory_db
-      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672
-    depends_on:
-      postgres:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
     networks:
       - pedidos-net
     restart: unless-stopped
