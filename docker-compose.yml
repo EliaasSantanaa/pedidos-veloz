@@ -1,0 +1,105 @@
+version: "3.9"
+
+networks:
+  pedidos-net:
+    driver: bridge
+
+volumes:
+  pg_data:
+  rabbitmq_data:
+
+services:
+  api-gateway:
+    build:
+      context: ./services/api-gateway
+    ports:
+      - "8080:80"
+    depends_on:
+      - orders-service
+      - payments-service
+      - inventory-service
+    networks:
+      - pedidos-net
+    restart: unless-stopped
+
+  orders-service:
+    build:
+      context: ./services/orders-service
+      target: production
+    environment:
+      - NODE_ENV=development
+      - PORT=3001
+      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/orders_db
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - pedidos-net
+    restart: unless-stopped
+
+  payments-service:
+    build:
+      context: ./services/payments-service
+      target: production
+    environment:
+      - NODE_ENV=development
+      - PORT=3002
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672
+      - PAYMENT_GATEWAY_URL=${PAYMENT_GATEWAY_URL:-http://mock-payment}
+      - PAYMENT_GATEWAY_KEY=${PAYMENT_GATEWAY_KEY:-dev-key}
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - pedidos-net
+    restart: unless-stopped
+
+  inventory-service:
+    build:
+      context: ./services/inventory-service
+      target: production
+    environment:
+      - NODE_ENV=development
+      - PORT=3003
+      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/inventory_db
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - pedidos-net
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: orders_db
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - pedidos-net
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    ports:
+      - "15672:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+    networks:
+      - pedidos-net
