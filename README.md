@@ -1,8 +1,8 @@
 # 🚀 Pedidos Veloz — Plataforma de Microsserviços com DevOps Completo
 
-> **Disciplina:** Cloud DevOps: Orchestrating Containers and Micro Services
-> **Professor:** Fernando Leonid
-> **Aluno:** Elias Santana | **RA:** 97351
+> **Disciplina:** Cloud DevOps: Orchestrating Containers and Micro Services  
+> **Professor:** Fernando Leonid  
+> **Aluno:** Elias Santana | **RA:** 97351  
 > **Instituição:** UniFECAF
 
 ---
@@ -15,7 +15,7 @@ Este projeto foi desenvolvido como resposta ao desafio proposto na disciplina de
 - Dificuldade de escalar em picos de acesso
 - Baixa rastreabilidade de falhas entre serviços
 
-A solução proposta moderniza toda a esteira de entrega de software, indo do ambiente local de desenvolvimento até a produção em nuvem, cobrindo conteinerização, orquestração, CI/CD e observabilidade.
+A solução moderniza toda a esteira de entrega de software: do ambiente local de desenvolvimento até a produção em nuvem, cobrindo conteinerização, orquestração com Kubernetes, CI/CD automatizado e observabilidade completa.
 
 ---
 
@@ -25,43 +25,44 @@ A solução proposta moderniza toda a esteira de entrega de software, indo do am
 Internet
     │
     ▼
-[ API Gateway — porta 8080 ]  ← único ponto de entrada
+[ API Gateway — porta 8080 ]  ← único ponto de entrada (NGINX)
     │
-    ├──► [ orders-service   :3001 ]  → PostgreSQL (orders_db)
-    │              │
-    │              └──► publica evento "PedidoCriado" no RabbitMQ
+    ├──► [ orders-service   :3001 ]  → armazena pedidos em memória
     │
-    ├──► [ payments-service :3002 ]  → API externa de pagamento
-    │              │
-    │              └──► consome evento "PedidoCriado" do RabbitMQ
+    ├──► [ payments-service :3002 ]  → processa pagamentos
     │
-    └──► [ inventory-service:3003 ]  → PostgreSQL (inventory_db)
-                   │
-                   └──► consome evento "PedidoCriado" do RabbitMQ
+    └──► [ inventory-service:3003 ]  → controla estoque
+
+Infraestrutura de suporte:
+    ├── PostgreSQL  :5432  → banco de dados relacional
+    └── RabbitMQ    :5672  → mensageria entre serviços
+                   :15672  → painel de gerenciamento (web)
 ```
 
 ### Por que essa arquitetura?
 
-A separação em microsserviços permite que cada equipe trabalhe de forma independente no seu serviço, faça deploys isolados e escale apenas o que precisa escalar. O RabbitMQ desacopla os serviços de forma assíncrona — se o serviço de pagamentos ficar lento, os pedidos continuam sendo criados normalmente na fila, sem derrubar a experiência do usuário.
+Cada serviço é independente e pode ser atualizado, escalado ou substituído sem afetar os demais. O RabbitMQ desacopla a comunicação entre eles de forma assíncrona — se o serviço de pagamentos ficar lento, os pedidos continuam sendo aceitos normalmente. O API Gateway é o único ponto de entrada, centralizando roteamento e segurança.
 
 ---
 
 ## 🛠️ Tecnologias Utilizadas
 
-| Camada          | Tecnologia                 | Motivo da escolha                          |
-| --------------- | -------------------------- | ------------------------------------------ |
-| Containerização | Docker + multi-stage build | Imagens enxutas e seguras                  |
-| Ambiente local  | Docker Compose             | Stack completa com um comando              |
-| Orquestração    | Kubernetes (AKS)           | Escalabilidade e resiliência em produção   |
-| Registry        | Azure Container Registry   | Integração nativa com AKS e GitHub Actions |
-| CI/CD           | GitHub Actions             | Integração nativa com o repositório        |
-| IaC             | Terraform                  | Infraestrutura reproduzível e versionada   |
-| Mensageria      | RabbitMQ                   | Comunicação assíncrona entre serviços      |
-| Banco de dados  | PostgreSQL 16              | Banco relacional robusto e open-source     |
-| Métricas        | Prometheus + Grafana       | Stack de observabilidade consolidada       |
-| Logs            | Loki + Grafana             | Centralização de logs estruturados         |
-| Tracing         | OpenTelemetry + Jaeger     | Rastreamento distribuído entre serviços    |
-| Cloud           | Microsoft Azure            | Disponível no GitHub Student Pack          |
+| Camada          | Tecnologia               | Motivo da escolha                          |
+| --------------- | ------------------------ | ------------------------------------------ |
+| Containerização | Docker                   | Empacotamento padronizado dos serviços     |
+| Ambiente local  | Docker Compose           | Stack completa com um único comando        |
+| Orquestração    | Kubernetes (AKS)         | Escalabilidade e resiliência em produção   |
+| Registry        | Azure Container Registry | Integração nativa com AKS e GitHub Actions |
+| CI/CD           | GitHub Actions           | Automação integrada ao repositório         |
+| IaC             | Terraform                | Infraestrutura reproduzível e versionada   |
+| API Gateway     | NGINX                    | Roteamento leve e eficiente                |
+| Serviços        | Node.js + Express        | Simples, rápido e amplamente adotado       |
+| Mensageria      | RabbitMQ                 | Comunicação assíncrona entre serviços      |
+| Banco de dados  | PostgreSQL 16            | Banco relacional robusto e open-source     |
+| Métricas        | Prometheus + Grafana     | Observabilidade de métricas                |
+| Logs            | Loki + Grafana           | Centralização de logs                      |
+| Tracing         | OpenTelemetry + Jaeger   | Rastreamento distribuído                   |
+| Cloud           | Microsoft Azure          | Disponível no GitHub Student Pack          |
 
 ---
 
@@ -70,44 +71,49 @@ A separação em microsserviços permite que cada equipe trabalhe de forma indep
 ```
 pedidos-veloz/
 │
-├── services/                         # Código-fonte dos microsserviços
-│   ├── api-gateway/                  # NGINX — roteamento HTTP
+├── services/
+│   ├── api-gateway/
 │   │   ├── Dockerfile
 │   │   └── nginx.conf
-│   ├── orders-service/               # Serviço de pedidos (Node.js)
+│   ├── orders-service/
 │   │   ├── Dockerfile
-│   │   └── package.json
-│   ├── payments-service/             # Serviço de pagamentos (Node.js)
+│   │   ├── package.json
+│   │   └── src/
+│   │       └── server.js
+│   ├── payments-service/
 │   │   ├── Dockerfile
-│   │   └── package.json
-│   └── inventory-service/            # Serviço de estoque (Node.js)
+│   │   ├── package.json
+│   │   └── src/
+│   │       └── server.js
+│   └── inventory-service/
 │       ├── Dockerfile
-│       └── package.json
+│       ├── package.json
+│       └── src/
+│           └── server.js
 │
 ├── infra/
-│   ├── k8s/                          # Manifests Kubernetes
-│   │   ├── 00-namespace.yaml         # Namespace com Pod Security Admission
-│   │   ├── 01-configmaps.yaml        # Configurações não-sensíveis
-│   │   ├── 02-secrets.template.yaml  # Template de Secrets (sem valores reais)
-│   │   ├── 03-deployments.yaml       # Deployments com Rolling Update
-│   │   ├── 04-services.yaml          # Services (ClusterIP + LoadBalancer)
-│   │   ├── 05-hpa.yaml               # Horizontal Pod Autoscaler
-│   │   └── 06-network-policies.yaml  # Políticas de rede
-│   │
-│   └── terraform/                    # Infraestrutura como Código
-│       ├── main.tf                   # AKS + ACR + permissões
-│       ├── variables.tf              # Variáveis parametrizadas
-│       └── outputs.tf                # Outputs úteis pós-provisionamento
+│   ├── k8s/
+│   │   ├── 00-namespace.yaml
+│   │   ├── 01-configmaps.yaml
+│   │   ├── 02-secrets.template.yaml
+│   │   ├── 03-deployments.yaml
+│   │   ├── 04-services.yaml
+│   │   ├── 05-hpa.yaml
+│   │   └── 06-network-policies.yaml
+│   └── terraform/
+│       ├── main.tf
+│       ├── variables.tf
+│       └── outputs.tf
 │
 ├── .github/
 │   └── workflows/
-│       ├── ci.yml                    # Pipeline de Integração Contínua
-│       └── cd.yml                    # Pipeline de Entrega Contínua
+│       ├── ci.yml
+│       └── cd.yml
 │
-├── .env.example                      # Modelo de variáveis de ambiente
-├── .gitignore                        # Arquivos ignorados pelo Git
-├── docker-compose.yml                # Stack completa para desenvolvimento local
-└── README.md                         # Este arquivo
+├── .env.example
+├── .gitignore
+├── docker-compose.yml
+└── README.md
 ```
 
 ---
@@ -116,7 +122,7 @@ pedidos-veloz/
 
 ### Pré-requisitos
 
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/) instalado e rodando
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) instalado e **em execução**
 - [Git](https://git-scm.com/downloads) instalado
 
 ### Passo a passo
@@ -128,50 +134,98 @@ git clone https://github.com/SEU-USUARIO/pedidos-veloz.git
 cd pedidos-veloz
 ```
 
-**2. Configure as variáveis de ambiente**
-
-```bash
-copy .env.example .env
-```
-
-Abra o `.env` e defina uma senha para o banco:
-
-```env
-POSTGRES_PASSWORD=minhasenha123
-```
-
-**3. Suba toda a stack com um único comando**
+**2. Suba toda a stack com um único comando**
 
 ```bash
 docker compose up --build
 ```
 
-Aguarde todos os serviços subirem. Você verá no terminal as mensagens de healthcheck do PostgreSQL e RabbitMQ sendo aprovadas antes dos serviços de aplicação iniciarem.
+Aguarde até ver estas mensagens no terminal, que confirmam que tudo está no ar:
 
-**4. Teste se está funcionando**
+```
+orders-service-1    | orders-service rodando na porta 3001
+payments-service-1  | payments-service rodando na porta 3002
+inventory-service-1 | inventory-service rodando na porta 3003
+postgres-1          | database system is ready to accept connections
+rabbitmq-1          | Server startup complete; 5 plugins started.
+```
+
+**3. Teste os endpoints**
+
+Health check geral:
 
 ```bash
 curl http://localhost:8080/health
 ```
 
-Resposta esperada:
+Resposta esperada: `{"status":"ok"}`
 
-```json
-{ "status": "ok" }
-```
-
-**5. Acesse o painel do RabbitMQ** _(opcional)_
-
-Abra no navegador: http://localhost:15672
-Usuário: `guest` | Senha: `guest`
-
-**6. Para derrubar o ambiente**
+Listar pedidos:
 
 ```bash
-# Para os containers mas mantém os dados
+curl http://localhost:8080/api/orders
+```
+
+Criar um pedido:
+
+```bash
+curl -X POST http://localhost:8080/api/orders \
+  -H "Content-Type: application/json" \
+  -d "{\"productId\": \"1\", \"quantity\": 2, \"customerId\": \"cliente-123\"}"
+```
+
+Listar estoque:
+
+```bash
+curl http://localhost:8080/api/inventory
+```
+
+Reservar itens do estoque:
+
+```bash
+curl -X POST http://localhost:8080/api/inventory/reserve \
+  -H "Content-Type: application/json" \
+  -d "{\"productId\": \"1\", \"quantity\": 5}"
+```
+
+Processar pagamento:
+
+```bash
+curl -X POST http://localhost:8080/api/payments \
+  -H "Content-Type: application/json" \
+  -d "{\"orderId\": \"1\", \"amount\": 99.90}"
+```
+
+**4. Painel do RabbitMQ**
+
+Acesse no navegador: [http://localhost:15672](http://localhost:15672)
+
+| Campo   | Valor   |
+| ------- | ------- |
+| Usuário | `guest` |
+| Senha   | `guest` |
+
+**5. Verificar containers rodando**
+
+```bash
+docker compose ps
+```
+
+**6. Ver logs de um serviço específico**
+
+```bash
+docker compose logs orders-service
+docker compose logs payments-service
+docker compose logs inventory-service
+```
+
+**7. Derrubar o ambiente**
+
+```bash
+# Para os containers mantendo os dados
 docker compose down
 
-# Para os containers e apaga os volumes
+# Para os containers e apaga os volumes (dados zerados)
 docker compose down -v
 ```
 
@@ -183,45 +237,49 @@ O projeto possui dois pipelines automatizados no GitHub Actions.
 
 ### CI — Integração Contínua (`ci.yml`)
 
-Disparado em todo Pull Request ou push na branch main.
+Disparado em todo **Pull Request** ou **push na branch main**.
 
 ```
-Push / PR
-    │
-    ▼
-Lint do código
-    │
-    ▼
-Testes unitários (Jest)
-    │
-    ▼
-Build das imagens Docker
-    │
-    ▼
-Scan de vulnerabilidades (Trivy)
+Código enviado
+      │
+      ▼
+  Lint do código
+      │
+      ▼
+  Testes unitários
+      │
+      ▼
+  Build das imagens Docker
+      │
+      ▼
+  Scan de vulnerabilidades (Trivy)
 ```
 
 ### CD — Entrega Contínua (`cd.yml`)
 
-Disparado apenas em push na branch main, após o CI passar.
+Disparado apenas em **push na branch main**, após o CI passar com sucesso.
 
 ```
-Push na main
-    │
-    ▼
-Login na Azure via OIDC (sem senha estática)
-    │
-    ▼
-Build + Push das imagens para o ACR
-    │
-    ▼
-Deploy no AKS com Rolling Update
-    │
-    ▼
-Verificação automática do rollout
+Push aprovado na main
+        │
+        ▼
+  Login Azure via OIDC
+  (sem senha estática)
+        │
+        ▼
+  Build + Push das imagens
+  para o Azure Container Registry
+        │
+        ▼
+  Deploy no AKS
+  com Rolling Update
+        │
+        ▼
+  Verificação automática
+  do rollout
 ```
 
-> **Segurança:** A autenticação com a Azure usa OIDC (OpenID Connect), o que significa que nenhuma senha ou chave de API fica armazenada no repositório. O GitHub e a Azure trocam tokens temporários automaticamente a cada execução do pipeline.
+> **Segurança:** A autenticação usa OIDC (OpenID Connect). Nenhuma senha ou chave de API fica armazenada no repositório — o GitHub e a Azure trocam tokens temporários automaticamente a cada execução.
 
 ---
 
@@ -229,83 +287,74 @@ Verificação automática do rollout
 
 ### Estratégia de Deploy: Rolling Update
 
-Foi escolhida a estratégia **Rolling Update** pelo seguinte raciocínio:
+- **Zero-downtime garantido:** com `maxUnavailable: 0`, sempre há pelo menos uma réplica respondendo durante a atualização
+- **Rollback automático:** se os health checks falharem, o Kubernetes interrompe o deploy e mantém a versão anterior no ar
+- **Nativo no Kubernetes:** sem necessidade de ferramentas extras
 
-- É nativa no Kubernetes, sem necessidade de ferramentas extras
-- Garante **zero-downtime**: com `maxUnavailable: 0`, sempre há pelo menos uma réplica respondendo durante a atualização
-- Em caso de falha nos health checks, o Kubernetes para o rollout automaticamente e mantém a versão anterior no ar
+### Escalabilidade Automática — HPA
 
-### Escalabilidade Automática (HPA)
+| Serviço           | Réplicas mínimas | Réplicas máximas | Gatilho (CPU) |
+| ----------------- | ---------------- | ---------------- | ------------- |
+| orders-service    | 2                | 10               | 60%           |
+| inventory-service | 2                | 8                | 60%           |
 
-O **Horizontal Pod Autoscaler** monitora o uso de CPU e memória dos pods e escala automaticamente o número de réplicas:
+Durante picos de tráfego (como campanhas promocionais), o HPA provisiona novas réplicas automaticamente antes que a experiência do usuário seja degradada.
 
-| Serviço           | Mínimo | Máximo  | Gatilho CPU |
-| ----------------- | ------ | ------- | ----------- |
-| orders-service    | 2 pods | 10 pods | 60%         |
-| inventory-service | 2 pods | 8 pods  | 60%         |
+### Segurança no Cluster
 
-Durante a campanha promocional, se o tráfego dobrar, o HPA provisiona novas réplicas em menos de 2 minutos, antes que a experiência do usuário seja degradada.
-
-### Segurança
-
-- **Pod Security Admission** no namespace com perfil `restricted`
+- **Pod Security Admission** com perfil `restricted` — impede containers privilegiados
 - Todos os containers rodam com **usuário não-root**
 - **Network Policies** bloqueiam todo tráfego por padrão — apenas o API Gateway aceita conexões externas
-- **Secrets** nunca são versionados no repositório — em produção são populados via Azure Key Vault pelo pipeline
-- Imagens com **sistema de arquivos somente leitura** em produção
+- **Secrets** nunca versionados no repositório — populados pelo pipeline via Azure Key Vault
 
 ---
 
 ## 🏗️ Infraestrutura como Código (Terraform)
 
-O diretório `infra/terraform/` provisiona toda a infraestrutura na Azure de forma automatizada e reproduzível:
+O diretório `infra/terraform/` provisiona toda a infraestrutura na Azure:
 
 ```bash
 cd infra/terraform
 
-# Inicializar (baixa os providers)
+# Inicializar o Terraform
 terraform init
 
-# Visualizar o que será criado
+# Ver o que será criado
 terraform plan -var="environment=prod"
 
 # Criar a infraestrutura
 terraform apply -var="environment=prod"
 ```
 
-O **state** do Terraform é armazenado remotamente em um Azure Blob Storage, garantindo que toda a equipe trabalhe com o mesmo estado da infraestrutura e evitando conflitos.
+O **state** é armazenado remotamente em Azure Blob Storage, garantindo consistência entre toda a equipe.
 
 ---
 
 ## 📊 Observabilidade
 
-A solução implementa os três pilares de observabilidade.
-
 ### Métricas — Prometheus + Grafana
 
-Todos os pods possuem anotações que habilitam o scraping automático do Prometheus. O Grafana exibe dashboards com taxa de requisições, latência e uso de recursos.
+Todos os pods expõem métricas via anotações automáticas. O Grafana exibe dashboards com taxa de requisições, latência e uso de recursos em tempo real.
 
 ### Logs — Loki + Grafana
 
-Os serviços emitem logs estruturados em JSON seguindo o princípio XI do 12-Factor App (logs como streams). O Loki centraliza e permite correlacionar logs com métricas no mesmo painel do Grafana.
+Os serviços emitem logs estruturados. O Loki centraliza e permite correlacionar logs com métricas no mesmo painel.
 
 ### Tracing — OpenTelemetry + Jaeger
 
-Cada serviço é instrumentado com o SDK do OpenTelemetry. O contexto de rastreamento é propagado via headers HTTP (`traceparent`), permitindo visualizar no Jaeger o caminho completo de uma requisição do API Gateway até o banco de dados.
-
-Isso resolve diretamente o problema de **baixa rastreabilidade** que a Loja Veloz enfrentava: agora é possível identificar em segundos qual serviço causou uma falha e em qual ponto da requisição o erro ocorreu.
+O contexto de rastreamento é propagado via headers HTTP entre todos os serviços, permitindo visualizar no Jaeger o caminho completo de uma requisição — do API Gateway até o banco de dados. Isso resolve diretamente o problema de **baixa rastreabilidade** da Loja Veloz.
 
 ---
 
 ## 📚 Referências
 
 - [Azure-Samples/aks-store-demo](https://github.com/Azure-Samples/aks-store-demo) — Arquitetura de referência oficial Microsoft
-- [Kubernetes Documentation](https://kubernetes.io/docs) — Deployments, HPA, Network Policies, Security
-- [Docker Documentation](https://docs.docker.com) — Dockerfile multi-stage, Docker Compose
-- [The Twelve-Factor App](https://12factor.net) — Metodologia cloud-native
-- [GitHub Actions Documentation](https://docs.github.com/actions) — Pipelines CI/CD
-- [OpenTelemetry for Node.js](https://opentelemetry.io/docs/instrumentation/js) — Tracing distribuído
-- [Terraform AKS Tutorial](https://developer.hashicorp.com/terraform/tutorials/kubernetes/aks) — IaC para Azure
+- [Kubernetes Documentation](https://kubernetes.io/docs)
+- [Docker Documentation](https://docs.docker.com)
+- [The Twelve-Factor App](https://12factor.net)
+- [GitHub Actions Documentation](https://docs.github.com/actions)
+- [OpenTelemetry for Node.js](https://opentelemetry.io/docs/instrumentation/js)
+- [Terraform AKS Tutorial](https://developer.hashicorp.com/terraform/tutorials/kubernetes/aks)
 - NEWMAN, S. **Building Microservices**. 2. ed. O'Reilly Media, 2019.
 - MAJORS, C. **Observability Engineering**. O'Reilly Media, 2022.
 
