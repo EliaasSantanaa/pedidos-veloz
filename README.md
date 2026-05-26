@@ -362,7 +362,7 @@ O contexto de rastreamento é propagado via headers HTTP entre todos os serviço
 
 ## 🎥 Vídeo Pitch
 
-📹 **Link:** _[adicionar após gravação]_
+📹 **Link:** _[https://youtu.be/gqCjyS07zkE]_
 
 ---
 
